@@ -12,7 +12,7 @@ type Q = {
 };
 
 const QUESTIONS: Q[] = [
-  { id: "earningAboveSGA", label: "¿Has dejado de trabajar o planeas dejar de trabajar pronto?", type: "choice", options: ["Sí", "No"] },
+  { id: "stoppedWorking", label: "¿Has dejado de trabajar o planeas dejar de trabajar pronto?", type: "choice", options: ["Sí", "No"] },
   { id: "duration12mo", label: "¿Tu condición ha durado o durará 12 meses o más?", type: "choice", options: ["Sí", "No"] },
   { id: "limitation", label: "¿Cómo limita tu condición tu capacidad de trabajar?", type: "choice", options: ["No puedo trabajar", "No puedo sostener tiempo completo", "Faltas frecuentes", "Necesito acomodos", "Ninguna"] },
   { id: "ageBand", label: "¿Cuál es tu rango de edad?", type: "choice", options: ["18–29", "30–49", "50–54", "55–59", "60–64"] },
