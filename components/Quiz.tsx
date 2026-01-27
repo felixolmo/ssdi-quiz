@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import Image from "next/image";
 
@@ -36,40 +36,64 @@ export default function Quiz() {
   const [result, setResult] = useState<{ path: string; summary: string[] } | null>(null);
   const [lead, setLead] = useState({ firstName: "", lastName: "", email: "", phone: "", bestTime: "Mañana", consent: false });
   const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const submittingRef = useRef(false);
 
   const current = QUESTIONS[step];
-  const progress = useMemo(() => Math.round(((step) / QUESTIONS.length) * 100), [step]);
+  const progress = useMemo(() => Math.round((step / QUESTIONS.length) * 100), [step]);
 
   function onSelect(value: string) {
     setAnswers((a) => ({ ...a, [current.id]: value }));
   }
+
   function onText(value: string) {
     setAnswers((a) => ({ ...a, [current.id]: value }));
   }
 
   async function next() {
     if (!answers[current.id]) return;
+
     if (step < QUESTIONS.length - 1) {
       setStep(step + 1);
     } else {
       setSubmitting(true);
-      const res = await fetch("/api/quiz/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ answers }) });
+
+      const res = await fetch("/api/quiz/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers })
+      });
+
       const data = await res.json();
       setResult(data);
       setSubmitting(false);
     }
   }
+
   function back() {
     if (step > 0) setStep(step - 1);
   }
 
   async function submitLead() {
+    if (submittingRef.current || done) return;
+
     const parse = LeadSchema.safeParse(lead);
     if (!parse.success) return;
+
+    submittingRef.current = true;
     setSubmitting(true);
-    await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ answers, result, lead }) });
-    setSubmitting(false);
-    setResult({ path: result?.path || "submitted", summary: ["Gracias. Un especialista se comunicará contigo pronto."] });
+
+    try {
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers, result, lead })
+      });
+
+      setDone(true);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (result) {
@@ -78,10 +102,17 @@ export default function Quiz() {
         <div className="rounded-3xl shadow-xl ring-1 ring-black/5 overflow-hidden bg-white">
           <div className="px-6 py-6 border-b">
             <h1 className="text-2xl font-semibold text-[#306f98]">
-              {result.path === "likely_ssdi" ? "Es probable que califiques para SSDI" : result.path === "possible_ssi" ? "Podrías calificar para SSI" : result.path === "appeals" ? "Podrías tener opciones de apelación" : "Es posible que no cumplas con las guías del SSA"}
+              {result.path === "likely_ssdi"
+                ? "Es probable que califiques para SSDI"
+                : result.path === "possible_ssi"
+                ? "Podrías calificar para SSI"
+                : result.path === "appeals"
+                ? "Podrías tener opciones de apelación"
+                : "Es posible que no cumplas con las guías del SSA"}
             </h1>
             <p className="mt-2 text-sm text-neutral-600">Basado en tus respuestas. No constituye asesoría legal.</p>
           </div>
+
           <div className="px-6 py-6 space-y-4">
             <ul className="space-y-2">
               {result.summary.map((s, i) => (
@@ -91,27 +122,46 @@ export default function Quiz() {
                 </li>
               ))}
             </ul>
-            <div className="mt-6 rounded-2xl border p-6 space-y-4">
-              <h2 className="text-lg font-medium text-[#306f98]">Obtén tu evaluación de caso gratis</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input className="rounded-xl border px-4 py-3" placeholder="Nombre" value={lead.firstName} onChange={(e) => setLead({ ...lead, firstName: e.target.value })} />
-                <input className="rounded-xl border px-4 py-3" placeholder="Apellido" value={lead.lastName} onChange={(e) => setLead({ ...lead, lastName: e.target.value })} />
-                <input className="rounded-xl border px-4 py-3 md:col-span-2" placeholder="Correo electrónico" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} />
-                <input className="rounded-xl border px-4 py-3" placeholder="Teléfono" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
-                <select className="rounded-xl border px-4 py-3" value={lead.bestTime} onChange={(e) => setLead({ ...lead, bestTime: e.target.value })}>
-                  <option>Mañana</option>
-                  <option>Tarde</option>
-                  <option>Noche</option>
-                </select>
+
+            {!done ? (
+              <div className="mt-6 rounded-2xl border p-6 space-y-4">
+                <h2 className="text-lg font-medium text-[#306f98]">Obtén tu evaluación de caso gratis</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input className="rounded-xl border px-4 py-3" placeholder="Nombre" value={lead.firstName} onChange={(e) => setLead({ ...lead, firstName: e.target.value })} />
+                  <input className="rounded-xl border px-4 py-3" placeholder="Apellido" value={lead.lastName} onChange={(e) => setLead({ ...lead, lastName: e.target.value })} />
+                  <input className="rounded-xl border px-4 py-3 md:col-span-2" placeholder="Correo electrónico" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} />
+                  <input className="rounded-xl border px-4 py-3" placeholder="Teléfono" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
+
+                  <select className="rounded-xl border px-4 py-3" value={lead.bestTime} onChange={(e) => setLead({ ...lead, bestTime: e.target.value })}>
+                    <option>Mañana</option>
+                    <option>Tarde</option>
+                    <option>Noche</option>
+                  </select>
+                </div>
+
+                <label className="flex items-center gap-3 text-sm">
+                  <input type="checkbox" checked={lead.consent} onChange={(e) => setLead({ ...lead, consent: e.target.checked })} />
+                  <span>Acepto ser contactada/o por teléfono, correo o SMS. Política de privacidad.</span>
+                </label>
+
+                <button
+                  disabled={submitting}
+                  onClick={submitLead}
+                  className={`w-full rounded-xl px-6 py-4 text-white ${submitting ? "bg-[#306f98]/60 cursor-not-allowed" : "bg-[#306f98]"}`}
+                >
+                  {submitting ? "Enviando..." : "Solicitar evaluación gratuita"}
+                </button>
               </div>
-              <label className="flex items-center gap-3 text-sm">
-                <input type="checkbox" checked={lead.consent} onChange={(e) => setLead({ ...lead, consent: e.target.checked })} />
-                <span>Acepto ser contactada/o por teléfono, correo o SMS. Política de privacidad.</span>
-              </label>
-              <button disabled={submitting} onClick={submitLead} className="w-full rounded-xl bg-[#306f98] px-6 py-4 text-white">
-                {submitting ? "Enviando..." : "Solicitar evaluación gratuita"}
-              </button>
-            </div>
+            ) : (
+              <div className="mt-6 rounded-2xl border p-8 text-center">
+                <div className="mx-auto mb-4 h-14 w-14 rounded-full bg-emerald-100 grid place-items-center">
+                  <span className="text-xl">✅</span>
+                </div>
+                <div className="text-lg font-medium text-[#306f98]">¡Listo! Hemos recibido su solicitud.</div>
+                <div className="mt-1 text-sm text-neutral-600">En breve un especialista se comunicará con usted.</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -128,11 +178,15 @@ export default function Quiz() {
               <Image src="/quiz-avatar.png" alt="Asesora" width={56} height={56} className="object-cover w-full h-full" />
             </div>
           </div>
+
           <div className="mt-4 flex items-center gap-3">
             {QUESTIONS.map((_, i) => (
-              <div key={i} className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold ${i <= step ? "bg-[#306f98] text-white" : "bg-neutral-200 text-neutral-600"}`}>{i + 1}</div>
+              <div key={i} className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold ${i <= step ? "bg-[#306f98] text-white" : "bg-neutral-200 text-neutral-600"}`}>
+                {i + 1}
+              </div>
             ))}
           </div>
+
           <div className="absolute inset-x-0 -bottom-[1px] h-1 bg-[#306f98]" style={{ width: `${progress}%` }} />
         </div>
 
@@ -147,9 +201,7 @@ export default function Quiz() {
                   <button
                     key={opt}
                     onClick={() => onSelect(opt)}
-                    className={`rounded-full px-6 py-4 border-2 text-lg transition ${
-                      active ? "border-[#306f98] bg-[#306f98]/10" : "border-neutral-300 hover:border-neutral-500"
-                    }`}
+                    className={`rounded-full px-6 py-4 border-2 text-lg transition ${active ? "border-[#306f98] bg-[#306f98]/10" : "border-neutral-300 hover:border-neutral-500"}`}
                   >
                     {opt}
                   </button>
