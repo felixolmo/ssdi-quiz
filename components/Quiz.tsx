@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { z } from "zod";
 import Image from "next/image";
 
@@ -42,6 +42,13 @@ export default function Quiz() {
   const current = QUESTIONS[step];
   const progress = useMemo(() => Math.round((step / QUESTIONS.length) * 100), [step]);
 
+  useEffect(() => {
+    const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+    try {
+      window.parent.postMessage({ type: "QUIZ_HEIGHT", height: h }, "*");
+    } catch {}
+  }, [step, result, done]);
+
   function onSelect(value: string) {
     setAnswers((a) => ({ ...a, [current.id]: value }));
   }
@@ -54,24 +61,26 @@ export default function Quiz() {
     if (!answers[current.id]) return;
 
     if (step < QUESTIONS.length - 1) {
-      setStep(step + 1);
-    } else {
-      setSubmitting(true);
+      setStep((s) => s + 1);
+      return;
+    }
 
+    setSubmitting(true);
+    try {
       const res = await fetch("/api/quiz/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers })
       });
-
       const data = await res.json();
       setResult(data);
+    } finally {
       setSubmitting(false);
     }
   }
 
   function back() {
-    if (step > 0) setStep(step - 1);
+    if (step > 0) setStep((s) => s - 1);
   }
 
   async function submitLead() {
@@ -79,6 +88,8 @@ export default function Quiz() {
 
     const parse = LeadSchema.safeParse(lead);
     if (!parse.success) return;
+
+    if (!result) return;
 
     submittingRef.current = true;
     setSubmitting(true);
@@ -96,20 +107,19 @@ export default function Quiz() {
     }
   }
 
+  function resultTitle(path: string) {
+    if (path === "likely_ssdi") return "Es probable que califiques para SSDI";
+    if (path === "possible_ssi") return "Podrías calificar para SSI";
+    if (path === "appeals") return "Podrías tener opciones de apelación";
+    return "Es posible que no cumplas con las guías del SSA";
+  }
+
   if (result) {
     return (
       <div className="mx-auto max-w-2xl">
         <div className="rounded-3xl shadow-xl ring-1 ring-black/5 overflow-hidden bg-white">
           <div className="px-6 py-6 border-b">
-            <h1 className="text-2xl font-semibold text-[#306f98]">
-              {result.path === "likely_ssdi"
-                ? "Es probable que califiques para SSDI"
-                : result.path === "possible_ssi"
-                ? "Podrías calificar para SSI"
-                : result.path === "appeals"
-                ? "Podrías tener opciones de apelación"
-                : "Es posible que no cumplas con las guías del SSA"}
-            </h1>
+            <h1 className="text-2xl font-semibold text-[#306f98]">{resultTitle(result.path)}</h1>
             <p className="mt-2 text-sm text-neutral-600">Basado en tus respuestas. No constituye asesoría legal.</p>
           </div>
 
@@ -128,21 +138,48 @@ export default function Quiz() {
                 <h2 className="text-lg font-medium text-[#306f98]">Obtén tu evaluación de caso gratis</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input className="rounded-xl border px-4 py-3" placeholder="Nombre" value={lead.firstName} onChange={(e) => setLead({ ...lead, firstName: e.target.value })} />
-                  <input className="rounded-xl border px-4 py-3" placeholder="Apellido" value={lead.lastName} onChange={(e) => setLead({ ...lead, lastName: e.target.value })} />
-                  <input className="rounded-xl border px-4 py-3 md:col-span-2" placeholder="Correo electrónico" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} />
-                  <input className="rounded-xl border px-4 py-3" placeholder="Teléfono" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} />
+                  <input
+                    className="rounded-xl border px-4 py-3"
+                    placeholder="Nombre"
+                    value={lead.firstName}
+                    onChange={(e) => setLead({ ...lead, firstName: e.target.value })}
+                  />
+                  <input
+                    className="rounded-xl border px-4 py-3"
+                    placeholder="Apellido"
+                    value={lead.lastName}
+                    onChange={(e) => setLead({ ...lead, lastName: e.target.value })}
+                  />
+                  <input
+                    className="rounded-xl border px-4 py-3 md:col-span-2"
+                    placeholder="Correo electrónico"
+                    value={lead.email}
+                    onChange={(e) => setLead({ ...lead, email: e.target.value })}
+                  />
+                  <input
+                    className="rounded-xl border px-4 py-3"
+                    placeholder="Teléfono"
+                    value={lead.phone}
+                    onChange={(e) => setLead({ ...lead, phone: e.target.value })}
+                  />
 
-                  <select className="rounded-xl border px-4 py-3" value={lead.bestTime} onChange={(e) => setLead({ ...lead, bestTime: e.target.value })}>
-                    <option>Mañana</option>
-                    <option>Tarde</option>
-                    <option>Noche</option>
-                  </select>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-neutral-700">Mejor hora para contactarte</div>
+                    <select
+                      className="w-full rounded-xl border px-4 py-3"
+                      value={lead.bestTime}
+                      onChange={(e) => setLead({ ...lead, bestTime: e.target.value })}
+                    >
+                      <option>Mañana</option>
+                      <option>Tarde</option>
+                      <option>Noche</option>
+                    </select>
+                  </div>
                 </div>
 
                 <label className="flex items-center gap-3 text-sm">
                   <input type="checkbox" checked={lead.consent} onChange={(e) => setLead({ ...lead, consent: e.target.checked })} />
-                  <span>Acepto ser contactada/o por teléfono, correo o SMS. Política de privacidad.</span>
+                  <span>Acepto ser contactada/o por teléfono, correo o SMS.</span>
                 </label>
 
                 <button
@@ -158,8 +195,10 @@ export default function Quiz() {
                 <div className="mx-auto mb-4 h-14 w-14 rounded-full bg-emerald-100 grid place-items-center">
                   <span className="text-xl">✅</span>
                 </div>
-                <div className="text-lg font-medium text-[#306f98]">¡Listo! Hemos recibido su solicitud.</div>
-                <div className="mt-1 text-sm text-neutral-600">En breve un especialista se comunicará con usted.</div>
+                <div className="text-lg font-medium text-[#306f98]">¡Listo! Recibimos tu solicitud.</div>
+                <div className="mt-1 text-sm text-neutral-600">
+                  Te enviaremos los próximos pasos a <span className="font-medium">{lead.email}</span>. Un especialista se comunicará contigo pronto.
+                </div>
               </div>
             )}
           </div>
@@ -181,7 +220,12 @@ export default function Quiz() {
 
           <div className="mt-4 flex items-center gap-3">
             {QUESTIONS.map((_, i) => (
-              <div key={i} className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold ${i <= step ? "bg-[#306f98] text-white" : "bg-neutral-200 text-neutral-600"}`}>
+              <div
+                key={i}
+                className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold ${
+                  i <= step ? "bg-[#306f98] text-white" : "bg-neutral-200 text-neutral-600"
+                }`}
+              >
                 {i + 1}
               </div>
             ))}
@@ -201,7 +245,9 @@ export default function Quiz() {
                   <button
                     key={opt}
                     onClick={() => onSelect(opt)}
-                    className={`rounded-full px-6 py-4 border-2 text-lg transition ${active ? "border-[#306f98] bg-[#306f98]/10" : "border-neutral-300 hover:border-neutral-500"}`}
+                    className={`rounded-full px-6 py-4 border-2 text-lg transition ${
+                      active ? "border-[#306f98] bg-[#306f98]/10" : "border-neutral-300 hover:border-neutral-500"
+                    }`}
                   >
                     {opt}
                   </button>
@@ -222,15 +268,21 @@ export default function Quiz() {
           )}
 
           <div className="mt-10 flex items-center justify-between">
-            <button onClick={back} className="rounded-xl border px-5 py-3">Atrás</button>
-            <button onClick={next} disabled={!answers[current.id] || submitting} className="rounded-xl bg-[#306f98] px-6 py-3 text-white">
+            <button onClick={back} className="rounded-xl border px-5 py-3">
+              Atrás
+            </button>
+            <button
+              onClick={next}
+              disabled={!answers[current.id] || submitting}
+              className="rounded-xl bg-[#306f98] px-6 py-3 text-white"
+            >
               {step === QUESTIONS.length - 1 ? "Ver resultados" : "Continuar"}
             </button>
           </div>
 
           <div className="mt-8 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-[#306f98]">
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100">💵</span>
-            <span>Pregunta por recompensas de referidos. Completa la evaluación para recibir tu código.</span>
+            <span>Completa la evaluación para recibir tus próximos pasos.</span>
           </div>
         </div>
       </div>
