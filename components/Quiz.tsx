@@ -13,12 +13,12 @@ type Q = {
 
 const QUESTIONS: Q[] = [
   { id: "stoppedWorking", label: "¿Has dejado de trabajar o planeas dejar de trabajar pronto?", type: "choice", options: ["Sí", "No"] },
-  { id: "duration12mo", label: "¿Tu condición ha durado o durará 12 meses o más?", type: "choice", options: ["Sí", "No"] },
-  { id: "limitation", label: "¿Cómo limita tu condición tu capacidad de trabajar?", type: "choice", options: ["No puedo trabajar", "No puedo sostener tiempo completo", "Faltas frecuentes", "Necesito acomodos", "Ninguna"] },
-  { id: "ageBand", label: "¿Cuál es tu rango de edad?", type: "choice", options: ["18–29", "30–49", "50–54", "55–59", "60–64"] },
-  { id: "workCredits5of10", label: "¿Has pagado impuestos del Seguro Social ~5 de los últimos 10 años?", type: "choice", options: ["Sí", "No", "No estoy seguro/a"] },
-  { id: "priorApplication", label: "¿Has solicitado antes?", type: "choice", options: ["No", "Denegado en inicial", "Denegado en reconsideración", "Denegado en vista", "Denegado en Consejo de Apelaciones"] },
-  { id: "zip", label: "Código postal", type: "text" }
+  { id: "duration12mo", label: "¿Tu incapacidad ha durado o se espera que dure 12 meses o más?", type: "choice", options: ["Sí", "No"] },
+  { id: "limitation", label: "¿Cómo de limitado te encuentras para trabajar?", type: "choice", options: ["No puedo trabajar", "No puedo sostener tiempo completo", "Faltas frecuentes", "Necesito acomodos", "Ninguna"] },
+  { id: "ageBand", label: "¿Cuál es tu rango de edad?", type: "choice", options: ["18 - 44", "45 - 49", "50 - 54", "55 - 59", "60 o más"] },
+  { id: "workCredits5of10", label: "¿Has pagado impuestos del Seguro Social o trabajado para un patrono que pague dichos impuestos por ~ 5 de los últimos 10 años?", type: "choice", options: ["Sí", "No", "No estoy seguro/a"] },
+  { id: "priorApplication", label: "¿Has solicitado beneficios de Seguro Social por Incapacidad antes?", type: "choice", options: ["No", "Denegado en inicial", "Denegado en reconsideración", "Denegado en vista", "Denegado en Consejo de Apelaciones"] },
+  { id: "zip", label: "Código Postal (Zip Code) o Pueblo", type: "text" }
 ];
 
 const LeadSchema = z.object({
@@ -289,4 +289,3 @@ export default function Quiz() {
     </div>
   );
 }
-

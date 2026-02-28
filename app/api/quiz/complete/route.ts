@@ -17,10 +17,11 @@ function score(answers: Record<string, string>) {
   if (answers.limitation === "Necesito acomodos") s += 1;
   if (answers.limitation === "Ninguna") s -= 2;
 
-  if (answers.ageBand === "30–49") s += 1;
-  if (answers.ageBand === "50–54") s += 2;
-  if (answers.ageBand === "55–59") s += 3;
-  if (answers.ageBand === "60–64") s += 3;
+  if (answers.ageBand === "18 - 44") s += 0;
+  if (answers.ageBand === "45 - 49") s += 1;
+  if (answers.ageBand === "50 - 54") s += 2;
+  if (answers.ageBand === "55 - 59") s += 3;
+  if (answers.ageBand === "60 o más") s += 3;
 
   if (answers.workCredits5of10 === "Sí") s += 2;
 
